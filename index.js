@@ -24,14 +24,13 @@ async function run() {
             await processBlock(latestBlock);
             await sleep(1000);
         } catch (error) {
-            console.log(error);
             await sleep(15000);
         }
     }
 }
 
 async function processBlock(blockNumber) {
-    const startAt = new Date();
+    const startAt = Date.now();
     let block = await web3.eth.getBlock(blockNumber);
     console.log(`Processing block ${blockNumber}`);
     let transactions = block.transactions;
@@ -39,8 +38,8 @@ async function processBlock(blockNumber) {
     // console.log(block);
 
     await Promise.all(transactions.map(txHash => processTransaction(txHash)));
-    const totalTime = new Date(new Date() - startAt).getSeconds();
-    console.log(`Done processing block ${blockNumber} in ${totalTime} seconds`);
+    const totalTime = Date.now() - startAt;
+    console.log(`Done processing block ${blockNumber} in ${totalTime} milliseconds`);
 
     ///
     latestBlock = block.number + 1;
