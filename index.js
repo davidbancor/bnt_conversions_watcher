@@ -29,6 +29,7 @@ async function run() {
         try {
             await processBlock(latestBlock);
         } catch (error) {
+            // console.log(error);
             await sleep(15000);
         }
     }
@@ -56,12 +57,12 @@ async function processTransaction(txHash) {
     if (tx.to && CONVERTER_ADDRESSES.includes(tx.to.toLowerCase())) {
         // console.log('Found relevant tx!!');
         const decodedData = abiDecoder.decodeMethod(tx.input);
-        await processConversion(decodedData, txHash)
+        await processConversion(decodedData, txHash, tx.from)
         // console.log(`method data: ${JSON.stringify(decodedData)}`);
     }
 }
 
-async function processConversion(decodedData, txHash) {
+async function processConversion(decodedData, txHash, from) {
     if (!['quickConvert', 'quickConvertPrioritized'].includes(decodedData.name))
         return;
 
@@ -83,7 +84,7 @@ async function processConversion(decodedData, txHash) {
     }
     fromTokenDecimals = await fromTokenContract.methods.decimals().call();
     const amount = new BN(value).dividedBy(new BN(Math.pow(10, fromTokenDecimals))).toString();
-    console.log(`Found conversion of ${amount} ${fromTokenSymbol} to BNT. txHash - ${txHash}`);
+    console.log(`${from.toLowerCase()} converted ${amount} ${fromTokenSymbol} to BNT. txHash - ${txHash}`);
     
 }
 
