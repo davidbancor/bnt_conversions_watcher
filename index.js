@@ -29,7 +29,6 @@ async function run() {
         try {
             await processBlock(latestBlock);
         } catch (error) {
-            console.log(error)
             await sleep(15000);
         }
     }
