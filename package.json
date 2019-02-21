@@ -10,6 +10,7 @@
   "license": "ISC",
   "dependencies": {
     "abi-decoder": "^1.2.0",
+    "bignumber.js": "^8.0.2",
     "dotenv": "^6.2.0",
     "fs": "0.0.1-security",
     "web3": "^1.0.0-beta.46"

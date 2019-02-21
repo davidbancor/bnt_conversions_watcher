@@ -2,6 +2,7 @@ require('dotenv').config();
 const Web3 = require('web3');
 const abiDecoder = require('abi-decoder');
 const fs = require('fs');
+const BN = require('bignumber.js');
 
 
 const WEB3_PROVIDER = process.env.WEB3_PROVIDER || 'https://mainnet.infura.io';
@@ -9,7 +10,12 @@ const BNT_ADDRESS = process.env.BNT_ADDRESS || '0x1f573d6fb3f13d689ff844b4ce3779
 const CONVERTER_ADDRESSES = (process.env.CONVERTER_ADDRESSES || '0xcbc6a023eb975a1e2630223a7959988948e664f3').split(',');
 const LAST_PROCESSED_BLOCK = Number(process.env.LAST_PROCESSED_BLOCK) || 'latest';
 
-const abis = { bancorConverter: { filename: 'BancorConverter.abi' } };
+const abis = 
+{
+    bancorConverter: { filename: 'BancorConverter.abi' },
+    erc20Token: { filename: 'ERC20Token.abi' },
+    erc20TokenBytes32Symbol: { filename: 'ERC20TokenBytes32Symbol.abi' },
+};
 
 let web3;
 let latestBlock = LAST_PROCESSED_BLOCK;
@@ -22,8 +28,8 @@ async function run() {
     while (true) {
         try {
             await processBlock(latestBlock);
-            await sleep(1000);
         } catch (error) {
+            console.log(error)
             await sleep(15000);
         }
     }
@@ -51,19 +57,35 @@ async function processTransaction(txHash) {
     if (tx.to && CONVERTER_ADDRESSES.includes(tx.to.toLowerCase())) {
         // console.log('Found relevant tx!!');
         const decodedData = abiDecoder.decodeMethod(tx.input);
-        processMethod(decodedData, txHash)
+        await processConversion(decodedData, txHash)
         // console.log(`method data: ${JSON.stringify(decodedData)}`);
     }
 }
 
-function processMethod(method, txHash) {
-    if (['quickConvert', 'quickConvertPrioritized'].includes(method.name)) {
-        const path = method.params[0].value;
-        if (path[path.length - 1] === BNT_ADDRESS){
-            const value = method.params[1].value;
-            console.log(`Found conversion of ${value} ${path[0]} to BNT. txHash - ${txHash}`);
-        }
+async function processConversion(decodedData, txHash) {
+    if (!['quickConvert', 'quickConvertPrioritized'].includes(decodedData.name))
+        return;
+
+    const path = decodedData.params[0].value;
+
+    if (path[path.length - 1] !== BNT_ADDRESS)
+        return;
+
+    const value = decodedData.params[1].value;
+    const fromTokenAddress = path[0];
+    let fromTokenSymbol, fromTokenDecimals, fromTokenContract;
+    try {
+        fromTokenContract = new web3.eth.Contract(abis.erc20Token.abi, fromTokenAddress);
+        fromTokenSymbol = await fromTokenContract.methods.symbol().call();
+    } catch (error) {
+        // MKR symbol is bytes32, ichssss
+        fromTokenContract = new web3.eth.Contract(abis.erc20TokenBytes32Symbol.abi, fromTokenAddress);
+        fromTokenSymbol = web3.utils.hexToAscii(await fromTokenContract.methods.symbol().call());
     }
+    fromTokenDecimals = await fromTokenContract.methods.decimals().call();
+    const amount = new BN(value).dividedBy(new BN(Math.pow(10, fromTokenDecimals))).toString();
+    console.log(`Found conversion of ${amount} ${fromTokenSymbol} to BNT. txHash - ${txHash}`);
+    
 }
 
 function init() {
