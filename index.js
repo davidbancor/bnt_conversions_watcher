@@ -71,6 +71,11 @@ async function processConversion(decodedData, txHash, from) {
     if (path[path.length - 1] !== BNT_ADDRESS)
         return;
 
+    const receipt = await web3.eth.getTransactionReceipt(txHash);
+    // don't process failed conversions
+    if (!Number(receipt.status))
+        return;
+
     const value = decodedData.params[1].value;
     const fromTokenAddress = path[0];
     let fromTokenSymbol, fromTokenDecimals, fromTokenContract;
